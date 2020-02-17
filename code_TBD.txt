@@ -1,0 +1,9 @@
+compute_Hessian_function -> parentheses
+dataloader -> pin_memory to False -> num_worker=0
+questions on v_grads
+torch.backends.cudnn.benchmark
+the implementation of the parse(alpha, k, reduction=True) function -> softmax
+===
+use regularization like weight decay, drop_path, ...
+own dataset -> shuffle before splitting
+valid and test
