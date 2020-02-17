@@ -54,7 +54,10 @@ def main():
 
     # split data to train/validation
     n_train = len(train_data)
-    split = n_train // 2
+    if config.dataset != 'medical':
+        split = n_train // 2
+    else:
+        split = 1081
     indices = list(range(n_train))
     train_sampler = torch.utils.data.sampler.SubsetRandomSampler(indices[:split])
     valid_sampler = torch.utils.data.sampler.SubsetRandomSampler(indices[split:])
@@ -143,10 +146,16 @@ def train(train_loader, valid_loader, model, architect, w_optim, alpha_optim, lr
         nn.utils.clip_grad_norm_(model.weights(), config.w_grad_clip)
         w_optim.step()
 
-        prec1, prec5 = utils.accuracy(logits, trn_y, topk=(1, 5))
+        try:
+            prec1, prec5 = utils.accuracy(logits, trn_y, topk=(1, 5))
+        except:
+            prec1 = utils.accuracy(logits, trn_y, topk=(1,))[0]
         losses.update(loss.item(), N)
         top1.update(prec1.item(), N)
-        top5.update(prec5.item(), N)
+        try:
+            top5.update(prec5.item(), N)
+        except:
+            pass
 
         if step % config.print_freq == 0 or step == len(train_loader)-1:
             logger.info(
@@ -157,7 +166,10 @@ def train(train_loader, valid_loader, model, architect, w_optim, alpha_optim, lr
 
         writer.add_scalar('train/loss', loss.item(), cur_step)
         writer.add_scalar('train/top1', prec1.item(), cur_step)
-        writer.add_scalar('train/top5', prec5.item(), cur_step)
+        try:
+            writer.add_scalar('train/top5', prec5.item(), cur_step)
+        except:
+            pass
         cur_step += 1
 
     logger.info("Train: [{:2d}/{}] Final Prec@1 {:.4%}".format(epoch+1, config.epochs, top1.avg))
@@ -178,10 +190,16 @@ def validate(valid_loader, model, epoch, cur_step):
             logits = model(X)
             loss = model.criterion(logits, y)
 
-            prec1, prec5 = utils.accuracy(logits, y, topk=(1, 5))
+            try:
+                prec1, prec5 = utils.accuracy(logits, y, topk=(1, 5))
+            except:
+                prec1 = utils.accuracy(logits, y, topk=(1,))[0]
             losses.update(loss.item(), N)
             top1.update(prec1.item(), N)
-            top5.update(prec5.item(), N)
+            try:
+                top5.update(prec5.item(), N)
+            except:
+                pass
 
             if step % config.print_freq == 0 or step == len(valid_loader)-1:
                 logger.info(
@@ -192,7 +210,10 @@ def validate(valid_loader, model, epoch, cur_step):
 
     writer.add_scalar('val/loss', losses.avg, cur_step)
     writer.add_scalar('val/top1', top1.avg, cur_step)
-    writer.add_scalar('val/top5', top5.avg, cur_step)
+    try:
+        writer.add_scalar('val/top5', top5.avg, cur_step)
+    except:
+        pass
 
     logger.info("Valid: [{:2d}/{}] Final Prec@1 {:.4%}".format(epoch+1, config.epochs, top1.avg))
 

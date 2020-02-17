@@ -7,6 +7,8 @@ import torchvision.datasets as dset
 import numpy as np
 import preproc
 
+from image_cls.data_loader import ImageDataset
+
 
 def get_data(dataset, data_path, cutout_length, validation):
     """ Get torchvision dataset """
@@ -21,21 +23,39 @@ def get_data(dataset, data_path, cutout_length, validation):
     elif dataset == 'fashionmnist':
         dset_cls = dset.FashionMNIST
         n_classes = 10
+    elif dataset == 'medical':
+        base_path = '/home/grtzsohalf/Desktop/NVIDIA/image_data'
+        dset_cls = ImageDataset
+        n_classes = 2
     else:
         raise ValueError(dataset)
 
     trn_transform, val_transform = preproc.data_transforms(dataset, cutout_length)
-    trn_data = dset_cls(root=data_path, train=True, download=True, transform=trn_transform)
+    if dataset != 'medical':
+        trn_data = dset_cls(root=data_path, train=True, download=True, transform=trn_transform)
+    else:
+        if not validation:
+            trn_data = dset_cls(root=base_path, split='train+val', transform=trn_transform)
+        else:
+            trn_data = dset_cls(root=base_path, split='train', transform=trn_transform)
 
     # assuming shape is NHW or NHWC
     shape = trn_data.data.shape
-    input_channels = 3 if len(shape) == 4 else 1
-    assert shape[1] == shape[2], "not expected shape = {}".format(shape)
-    input_size = shape[1]
+    if dataset != 'medical':
+        input_channels = 3 if len(shape) == 4 else 1
+        assert shape[1] == shape[2], "not expected shape = {}".format(shape)
+        input_size = shape[1]
+    else:
+        input_channels = 1
+        input_size = (shape[1], shape[2])
 
     ret = [input_size, input_channels, n_classes, trn_data]
     if validation: # append validation data
-        ret.append(dset_cls(root=data_path, train=False, download=True, transform=val_transform))
+        if dataset != 'medical':
+            ret.append(dset_cls(root=data_path, train=False, download=True, transform=val_transform))
+        else:
+            ret.append(dset_cls(root=base_path, split='val', transform=val_transform))
+            ret.append(dset_cls(root=base_path, split='test', transform=val_transform))
 
     return ret
 
@@ -106,9 +126,12 @@ def accuracy(output, target, topk=(1,)):
     return res
 
 
-def save_checkpoint(state, ckpt_dir, is_best=False):
+def save_checkpoint(state, ckpt_dir, is_best=False, is_val_best=False):
     filename = os.path.join(ckpt_dir, 'checkpoint.pth.tar')
     torch.save(state, filename)
     if is_best:
         best_filename = os.path.join(ckpt_dir, 'best.pth.tar')
         shutil.copyfile(filename, best_filename)
+    if is_val_best:
+        val_best_filename = os.path.join(ckpt_dir, 'val_best.pth.tar')
+        shutil.copyfile(filename, val_best_filename)

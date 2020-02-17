@@ -35,8 +35,12 @@ def main():
     torch.backends.cudnn.benchmark = True
 
     # get data with meta info
-    input_size, input_channels, n_classes, train_data, valid_data = utils.get_data(
-        config.dataset, config.data_path, config.cutout_length, validation=True)
+    if config.dataset != 'medical':
+        input_size, input_channels, n_classes, train_data, valid_data = utils.get_data(
+            config.dataset, config.data_path, config.cutout_length, validation=True)
+    else:
+        input_size, input_channels, n_classes, train_data, train_val_data, valid_data = utils.get_data(
+            config.dataset, config.data_path, config.cutout_length, validation=True)
 
     criterion = nn.CrossEntropyLoss().to(device)
     use_aux = config.aux_weight > 0.
@@ -56,14 +60,25 @@ def main():
                                                batch_size=config.batch_size,
                                                shuffle=True,
                                                num_workers=config.workers,
-                                               pin_memory=True)
+                                               # pin_memory=True,
+                                               )
+    if config.dataset == 'medical':
+        train_val_loader = torch.utils.data.DataLoader(train_val_data,
+                                                   batch_size=config.batch_size,
+                                                   shuffle=False,
+                                                   num_workers=config.workers,
+                                                   # pin_memory=True,
+                                                   )
     valid_loader = torch.utils.data.DataLoader(valid_data,
                                                batch_size=config.batch_size,
                                                shuffle=False,
                                                num_workers=config.workers,
-                                               pin_memory=True)
+                                               # pin_memory=True,
+                                               )
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, config.epochs)
 
+    if config.dataset == 'medical':
+        val_best_top1 = 0.
     best_top1 = 0.
     # training loop
     for epoch in range(config.epochs):
@@ -76,18 +91,33 @@ def main():
 
         # validation
         cur_step = (epoch+1) * len(train_loader)
+        if config.dataset == 'medical':
+            val_top1 = validate(train_val_loader, model, criterion, epoch, cur_step)
         top1 = validate(valid_loader, model, criterion, epoch, cur_step)
 
-        # save
+        if config.dataset == 'medical':
+            if val_best_top1 < val_top1:
+                val_best_top1 = val_top1
+                is_val_best = True
+            else:
+                is_val_best = False
+
         if best_top1 < top1:
             best_top1 = top1
             is_best = True
         else:
             is_best = False
-        utils.save_checkpoint(model, config.path, is_best)
+
+        # save
+        if config.dataset == 'medical':
+            utils.save_checkpoint(model, config.path, is_best, is_val_best)
+        else:
+            utils.save_checkpoint(model, config.path, is_best)
 
         print("")
 
+    if config.dataset == 'medical':
+        logger.info("Final val_best Prec@1 = {:.4%}".format(val_best_top1))
     logger.info("Final best Prec@1 = {:.4%}".format(best_top1))
 
 
@@ -117,10 +147,16 @@ def train(train_loader, model, optimizer, criterion, epoch):
         nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
         optimizer.step()
 
-        prec1, prec5 = utils.accuracy(logits, y, topk=(1, 5))
+        try:
+            prec1, prec5 = utils.accuracy(logits, y, topk=(1, 5))
+        except:
+            prec1 = utils.accuracy(logits, y, topk=(1,))[0]
         losses.update(loss.item(), N)
         top1.update(prec1.item(), N)
-        top5.update(prec5.item(), N)
+        try:
+            top5.update(prec5.item(), N)
+        except:
+            pass
 
         if step % config.print_freq == 0 or step == len(train_loader)-1:
             logger.info(
@@ -131,7 +167,10 @@ def train(train_loader, model, optimizer, criterion, epoch):
 
         writer.add_scalar('train/loss', loss.item(), cur_step)
         writer.add_scalar('train/top1', prec1.item(), cur_step)
-        writer.add_scalar('train/top5', prec5.item(), cur_step)
+        try:
+            writer.add_scalar('train/top5', prec5.item(), cur_step)
+        except:
+            pass
         cur_step += 1
 
     logger.info("Train: [{:3d}/{}] Final Prec@1 {:.4%}".format(epoch+1, config.epochs, top1.avg))
@@ -152,10 +191,16 @@ def validate(valid_loader, model, criterion, epoch, cur_step):
             logits, _ = model(X)
             loss = criterion(logits, y)
 
-            prec1, prec5 = utils.accuracy(logits, y, topk=(1, 5))
+            try:
+                prec1, prec5 = utils.accuracy(logits, y, topk=(1, 5))
+            except:
+                prec1 = utils.accuracy(logits, y, topk=(1,))[0]
             losses.update(loss.item(), N)
             top1.update(prec1.item(), N)
-            top5.update(prec5.item(), N)
+            try:
+                top5.update(prec5.item(), N)
+            except:
+                pass
 
             if step % config.print_freq == 0 or step == len(valid_loader)-1:
                 logger.info(
@@ -166,7 +211,10 @@ def validate(valid_loader, model, criterion, epoch, cur_step):
 
     writer.add_scalar('val/loss', losses.avg, cur_step)
     writer.add_scalar('val/top1', top1.avg, cur_step)
-    writer.add_scalar('val/top5', top5.avg, cur_step)
+    try:
+        writer.add_scalar('val/top5', top5.avg, cur_step)
+    except:
+        pass
 
     logger.info("Valid: [{:3d}/{}] Final Prec@1 {:.4%}".format(epoch+1, config.epochs, top1.avg))
 
