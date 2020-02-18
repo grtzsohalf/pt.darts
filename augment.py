@@ -35,12 +35,14 @@ def main():
     torch.backends.cudnn.benchmark = True
 
     # get data with meta info
-    if config.dataset != 'medical':
-        input_size, input_channels, n_classes, train_data, valid_data = utils.get_data(
-            config.dataset, config.data_path, config.cutout_length, validation=True)
-    else:
-        input_size, input_channels, n_classes, train_data, train_val_data, valid_data = utils.get_data(
-            config.dataset, config.data_path, config.cutout_length, validation=True)
+    # if config.dataset != 'medical':
+        # input_size, input_channels, n_classes, train_data, valid_data = utils.get_data(
+            # config.dataset, config.data_path, config.cutout_length, validation=True)
+    # else:
+        # input_size, input_channels, n_classes, train_data, train_val_data, valid_data = utils.get_data(
+            # config.dataset, config.data_path, config.cutout_length, validation=True)
+    input_size, input_channels, n_classes, train_data, train_val_data, valid_data = utils.get_data(
+        config.dataset, config.data_path, config.cutout_length, validation=True)
 
     criterion = nn.CrossEntropyLoss().to(device)
     use_aux = config.aux_weight > 0.
@@ -82,12 +84,12 @@ def main():
     best_top1 = 0.
     # training loop
     for epoch in range(config.epochs):
-        lr_scheduler.step()
         drop_prob = config.drop_path_prob * epoch / config.epochs
         model.module.drop_path_prob(drop_prob)
 
         # training
         train(train_loader, model, optimizer, criterion, epoch)
+        lr_scheduler.step()
 
         # validation
         cur_step = (epoch+1) * len(train_loader)

@@ -37,8 +37,8 @@ def main():
     torch.backends.cudnn.benchmark = True
 
     # get data with meta info
-    input_size, input_channels, n_classes, train_data = utils.get_data(
-        config.dataset, config.data_path, cutout_length=0, validation=False)
+    input_size, input_channels, n_classes, train_data, train_val_data, valid_data= utils.get_data(
+        config.dataset, config.data_path, cutout_length=0, validation=True)
 
     net_crit = nn.CrossEntropyLoss().to(device)
     model = SearchCNNController(input_channels, config.init_channels, n_classes, config.layers,
@@ -54,11 +54,10 @@ def main():
 
     # split data to train/validation
     n_train = len(train_data)
-    if config.dataset != 'medical':
-        split = n_train // 2
-    else:
-        split = 1081
-    indices = list(range(n_train))
+    split = n_train // 2
+    # split = 1081
+    indices = np.arange(n_train)
+    np.random.shuffle(indices)
     train_sampler = torch.utils.data.sampler.SubsetRandomSampler(indices[:split])
     valid_sampler = torch.utils.data.sampler.SubsetRandomSampler(indices[split:])
     train_loader = torch.utils.data.DataLoader(train_data,
@@ -67,6 +66,13 @@ def main():
                                                num_workers=config.workers,
                                                # pin_memory=True,
                                                )
+    if config.dataset == 'medical':
+        train_val_loader = torch.utils.data.DataLoader(train_val_data,
+                                                   batch_size=config.batch_size,
+                                                   shuffle=False,
+                                                   num_workers=config.workers,
+                                                   # pin_memory=True,
+                                                   )
     valid_loader = torch.utils.data.DataLoader(train_data,
                                                batch_size=config.batch_size,
                                                sampler=valid_sampler,
@@ -80,17 +86,18 @@ def main():
     # training loop
     best_top1 = 0.
     for epoch in range(config.epochs):
-        lr_scheduler.step()
         lr = lr_scheduler.get_lr()[0]
 
         model.print_alphas(logger)
 
         # training
         train(train_loader, valid_loader, model, architect, w_optim, alpha_optim, lr, epoch)
+        lr_scheduler.step()
 
         # validation
         cur_step = (epoch+1) * len(train_loader)
-        top1 = validate(valid_loader, model, epoch, cur_step)
+        # top1 = validate(valid_loader, model, epoch, cur_step)
+        top1 = validate(train_val_loader, model, epoch, cur_step)
 
         # log
         # genotype
