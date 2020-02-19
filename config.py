@@ -70,7 +70,10 @@ class SearchConfig(BaseConfig):
         args = parser.parse_args()
         super().__init__(**vars(args))
 
-        self.data_path = './data/'
+        if self.dataset != 'medical':
+            self.data_path = './data/'
+        else:
+            self.data_path = '/home/grtzsohalf/Desktop/NVIDIA/image_data'
         self.path = os.path.join('searchs', self.name)
         self.plot_path = os.path.join(self.path, 'plots')
         self.gpus = parse_gpus(self.gpus)
@@ -108,7 +111,10 @@ class AugmentConfig(BaseConfig):
         args = parser.parse_args()
         super().__init__(**vars(args))
 
-        self.data_path = './data/'
+        if self.dataset != 'medical':
+            self.data_path = './data/'
+        else:
+            self.data_path = '/home/grtzsohalf/Desktop/NVIDIA/image_data'
         self.path = os.path.join('augments', self.name)
         self.genotype = gt.from_str(self.genotype)
         self.gpus = parse_gpus(self.gpus)

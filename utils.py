@@ -24,7 +24,6 @@ def get_data(dataset, data_path, cutout_length, validation):
         dset_cls = dset.FashionMNIST
         n_classes = 10
     elif dataset == 'medical':
-        base_path = '/home/grtzsohalf/Desktop/NVIDIA/image_data'
         dset_cls = ImageDataset
         n_classes = 2
     else:
@@ -34,7 +33,7 @@ def get_data(dataset, data_path, cutout_length, validation):
     if dataset != 'medical':
         trn_data = dset_cls(root=data_path, train=True, download=True, transform=trn_transform)
     else:
-        trn_data = dset_cls(root=base_path, split='train', transform=trn_transform)
+        trn_data = dset_cls(root=data_path, split='train', transform=trn_transform)
 
     # assuming shape is NHW or NHWC
     shape = trn_data.data.shape
@@ -47,14 +46,20 @@ def get_data(dataset, data_path, cutout_length, validation):
         input_size = (shape[1], shape[2])
 
     ret = [input_size, input_channels, n_classes, trn_data]
-    # if validation: # append validation data
-        # if dataset != 'medical':
-            # ret.append(dset_cls(root=data_path, train=False, download=True, transform=val_transform))
-        # else:
-            # ret.append(dset_cls(root=base_path, split='val', transform=val_transform))
-            # ret.append(dset_cls(root=base_path, split='test', transform=val_transform))
-    ret.append(dset_cls(root=base_path, split='val', transform=val_transform))
-    ret.append(dset_cls(root=base_path, split='test', transform=val_transform))
+    if validation: # append validation data
+        if dataset != 'medical':
+            ret.append(None)
+            ret.append(dset_cls(root=data_path, train=False, download=True, transform=val_transform))
+        else:
+            ret.append(dset_cls(root=data_path, split='val', transform=val_transform))
+            ret.append(dset_cls(root=data_path, split='test', transform=val_transform))
+    else:
+        if dataset != 'medical':
+            ret.append(None)
+            ret.append(None)
+        else:
+            ret.append(dset_cls(root=data_path, split='val', transform=val_transform))
+            ret.append(None)
 
     return ret
 
