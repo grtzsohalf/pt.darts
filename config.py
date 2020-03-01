@@ -63,6 +63,8 @@ class SearchConfig(BaseConfig):
         parser.add_argument('--alpha_weight_decay', type=float, default=1e-3,
                             help='weight decay for alpha')
 
+        parser.add_argument('--data_path', type=str, default='/medical_images', help='path of data')
+
         return parser
 
     def __init__(self):
@@ -73,7 +75,11 @@ class SearchConfig(BaseConfig):
         if self.dataset != 'medical':
             self.data_path = './data/'
         else:
-            self.data_path = '/home/grtzsohalf/Desktop/NVIDIA/image_data'
+            # try:
+                # self.data_path = '/home/grtzsohalf/Desktop/NVIDIA/image_data'
+            # except:
+                # self.data_path = '/medical_images'
+            self.data_path = args.data_path
         self.path = os.path.join('searchs', self.name)
         self.plot_path = os.path.join(self.path, 'plots')
         self.gpus = parse_gpus(self.gpus)
@@ -104,6 +110,8 @@ class AugmentConfig(BaseConfig):
 
         parser.add_argument('--genotype', required=True, help='Cell genotype')
 
+        parser.add_argument('--data_path', type=str, default='/medical_images', help='path of data')
+
         return parser
 
     def __init__(self):
@@ -114,7 +122,11 @@ class AugmentConfig(BaseConfig):
         if self.dataset != 'medical':
             self.data_path = './data/'
         else:
-            self.data_path = '/home/grtzsohalf/Desktop/NVIDIA/image_data'
+            # try:
+                # self.data_path = '/home/grtzsohalf/Desktop/NVIDIA/image_data'
+            # except:
+                # self.data_path = '/medical_images'
+            self.data_path = args.data_path
         self.path = os.path.join('augments', self.name)
         self.genotype = gt.from_str(self.genotype)
         self.gpus = parse_gpus(self.gpus)
